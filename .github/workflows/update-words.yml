@@ -1,1 +1,58 @@
+name: Update Wordle Used Words
+
+on:
+  # Run daily at 2:00 AM London time (UTC in winter, UTC+1 in summer)
+  # Using 1:00 AM UTC to approximate London time year-round
+  schedule:
+    - cron: '0 1 * * *'  # 1:00 AM UTC = ~2:00 AM London in winter
+
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  update-words:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4 lxml
+
+      - name: Run update script
+        run: |
+          python update-used-words.py
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --exit-code used-words.json || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if changed
+        if: steps.git-check.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "GitHub Actions Bot"
+          git add used-words.json
+          git commit -m "🤖 Auto-update used words - $(date +'%Y-%m-%d %H:%M UTC')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report status
+        run: |
+          if [ -f used-words.json ]; then
+            WORD_COUNT=$(python -c "import json; print(len(json.load(open('used-words.json'))))")
+            echo "✅ Successfully updated! Total words: $WORD_COUNT"
+          else
+            echo "❌ Error: used-words.json not found"
+            exit 1
+          fi
 
