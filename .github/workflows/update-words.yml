@@ -1,4 +1,4 @@
- name: Update Wordle Used Words
+  name: Update Wordle Used Words
 
   on:
     schedule:
@@ -41,3 +41,13 @@
             git push
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        - name: Report status
+          run: |
+            if [ -f used-words.json ]; then
+              WORD_COUNT=$(python -c "import json; print(len(json.load(open('used-words.json'))))")
+              echo "✅ Successfully updated! Total words: $WORD_COUNT"
+            else
+              echo "❌ Error: used-words.json not found"
+              exit 1
+            fi
