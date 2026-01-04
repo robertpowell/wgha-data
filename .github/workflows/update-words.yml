@@ -35,6 +35,16 @@ jobs:
         run: |
           git diff --exit-code used-words.json || echo "changed=true" >> $GITHUB_OUTPUT
 
+      - name: Get new words before commit
+        if: steps.git-check.outputs.changed == 'true'
+        id: new-words
+        run: |
+          # Get words that were added
+          NEW_WORDS=$(git diff used-words.json | grep '^+' | grep -v '^+++' | grep '"[A-Z]\{5\}"' | tr -d '+", ' | tr '\n' ' ')
+          WORD_COUNT=$(echo "$NEW_WORDS" | wc -w | tr -d ' ')
+          echo "words=$NEW_WORDS" >> $GITHUB_OUTPUT
+          echo "count=$WORD_COUNT" >> $GITHUB_OUTPUT
+
       - name: Commit and push if changed
         if: steps.git-check.outputs.changed == 'true'
         run: |
@@ -45,6 +55,22 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send Pushover notification on success
+        if: success()
+        run: |
+          if [ "${{ steps.git-check.outputs.changed }}" == "true" ]; then
+            MESSAGE="Added ${{ steps.new-words.outputs.count }} new words: ${{ steps.new-words.outputs.words }}"
+          else
+            MESSAGE="No new words added"
+          fi
+          curl -s \
+            --form-string "token=${{ secrets.PUSHOVER_API_TOKEN }}" \
+            --form-string "user=${{ secrets.PUSHOVER_USER_KEY }}" \
+            --form-string "title=WGHA Words Updated" \
+            --form-string "message=$MESSAGE" \
+            --form-string "priority=-2" \
+            https://api.pushover.net/1/messages.json
 
       - name: Report status
         run: |
