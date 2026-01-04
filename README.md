@@ -1,13 +1,15 @@
 # WGHA Automatic Word Updates
 
-This GitHub repository automatically updates the used Wordle words daily at 2am London time.
+This GitHub repository automatically updates the used Wordle words daily.
 
 ## How It Works
 
-1. **GitHub Actions** runs a scheduled workflow every day at 1:00 AM UTC (~2:00 AM London)
+1. **GitHub Actions** runs scheduled workflows at 1:00 AM and 4:30 AM UTC (backup)
 2. **Python script** (`update-used-words.py`) fetches latest used words from multiple sources
-3. **Auto-commits** the updated `used-words.json` file
-4. **Your iOS app** fetches this file when launched
+3. **Daily page scraping** ensures latest words are captured even when the archive is slow to update
+4. **Auto-commits** the updated `used-words.json` file
+5. **Pushover notifications** alert you to successes and failures
+6. **Your iOS app** fetches this file when launched
 
 ## Setup Instructions
 
@@ -81,25 +83,56 @@ Replace `YOUR-USERNAME` with your GitHub username.
 
 ## Schedule
 
-- **Runs:** Daily at 1:00 AM UTC (~2:00 AM London)
-- **Updates:** Only if new words are found
+- **Primary:** Daily at 1:00 AM UTC (~2:00 AM London)
+- **Backup:** Daily at 4:30 AM UTC (~5:30 AM London)
+- **Updates:** Only commits if new words are found
 - **Commits:** Automatic with timestamp
 
-To change the schedule, edit `.github/workflows/update-words.yml` line 7:
+The backup run catches any words missed if the primary run happens before Rock Paper Shotgun updates their page.
+
+To change the schedule, edit `.github/workflows/update-words.yml`:
 ```yaml
-- cron: '0 1 * * *'  # Format: minute hour day month weekday
+schedule:
+  - cron: '0 1 * * *'    # Primary: 1:00 AM UTC
+  - cron: '30 4 * * *'   # Backup: 4:30 AM UTC
 ```
 
-Examples:
-- `0 1 * * *` = 1:00 AM UTC daily
-- `0 2 * * *` = 2:00 AM UTC daily
-- `0 1 * * 1` = 1:00 AM UTC every Monday
+## Pushover Notifications
+
+The workflow sends Pushover notifications for monitoring:
+
+| Event | Priority | Message |
+|-------|----------|---------|
+| Words added | -2 (silent) | "Added X new words: WORD1 WORD2..." |
+| No changes | -2 (silent) | "No new words added" |
+| Failure | 0 (normal) | Error details with link to logs |
+
+### Setup Pushover
+
+1. Go to **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret** and add:
+   - `PUSHOVER_USER_KEY` - Your Pushover user key
+   - `PUSHOVER_API_TOKEN` - Your Pushover API token
+
+### Test Notifications
+
+To test that Pushover is working:
+
+1. Go to **Actions** tab → **Update Wordle Used Words**
+2. Click **Run workflow** → **Run workflow**
+3. Wait ~30 seconds for completion
+4. Check your Pushover app for notification:
+   - If words were added: "Added X new words: ..."
+   - If no changes: "No new words added"
+
+To test failure notifications, you can temporarily break the script (e.g., change the URL) and run the workflow.
 
 ## Data Sources
 
 The script tries these sources in order:
 
 1. **Rock Paper Shotgun** (primary) - Most reliable, manually curated
+   - Also scrapes individual daily hint pages for latest words (archive can be slow to update)
 2. **NYT Wordle** (backup) - Direct from source code
 3. **Wordle Archive** (fallback) - Community-maintained
 
@@ -109,9 +142,10 @@ If all fail, it keeps the existing word list.
 
 ### Check if it's working:
 
-1. **View Actions tab** - See all workflow runs
-2. **Check commit history** - Should see daily commits
-3. **App Settings** - Shows "Last updated" time
+1. **Pushover notifications** - Receive daily updates on new words or failures
+2. **View Actions tab** - See all workflow runs
+3. **Check commit history** - Should see daily commits
+4. **App Settings** - Shows "Last updated" time
 
 ### If updates stop:
 
@@ -190,4 +224,4 @@ Questions? mail@robertpowell.com
 ---
 
 **Status:** 🟢 Active
-**Last Updated:** 2025-12-28
+**Last Updated:** 2026-01-04
