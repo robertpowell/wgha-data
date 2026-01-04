@@ -30,6 +30,10 @@ def fetch_from_rock_paper_shotgun():
         # Wordle answers are always 5 letters, uppercase
         words = re.findall(r'\b[A-Z]{5}\b', text)
 
+        # Also fetch latest words from daily hint pages (RPS archive can be slow to update)
+        daily_words = fetch_latest_daily_words(soup)
+        words.extend(daily_words)
+
         # Remove duplicates and sort
         unique_words = sorted(set(words))
 
@@ -39,6 +43,52 @@ def fetch_from_rock_paper_shotgun():
     except Exception as e:
         print(f"❌ Error fetching from Rock Paper Shotgun: {e}")
         return None
+
+
+def fetch_latest_daily_words(soup):
+    """
+    Fetch words from the latest daily hint pages
+    RPS archive list can be slow to update, so we scrape recent daily pages
+    """
+    words = []
+
+    try:
+        # Find links to daily Wordle hint pages
+        links = soup.find_all('a', href=True)
+        daily_urls = []
+
+        for link in links:
+            href = link['href']
+            # Match daily hint page URLs like /wordle-hint-and-answer-today-04-01-26
+            if 'wordle-hint-and-answer' in href and href not in daily_urls:
+                if not href.startswith('http'):
+                    href = f"https://www.rockpapershotgun.com{href}"
+                daily_urls.append(href)
+
+        # Fetch up to 5 most recent daily pages
+        for url in daily_urls[:5]:
+            try:
+                resp = requests.get(url, timeout=15)
+                if resp.status_code == 200:
+                    daily_soup = BeautifulSoup(resp.text, 'html.parser')
+
+                    # Look for the answer - usually in bold or strong tags near "answer"
+                    text = daily_soup.get_text()
+
+                    # Find 5-letter uppercase words
+                    found = re.findall(r'\b[A-Z]{5}\b', text)
+                    words.extend(found)
+
+            except Exception:
+                continue
+
+        if words:
+            print(f"📰 Found {len(set(words))} words from daily pages")
+
+    except Exception as e:
+        print(f"⚠️ Could not fetch daily pages: {e}")
+
+    return words
 
 def fetch_from_nyt_wordle():
     """
