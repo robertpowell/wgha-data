@@ -8,5 +8,5 @@ This repo holds a list of words used in the popular 5 letter word guessing games
 
 ## How to load any new words
 
-1. in the WGHA - tap the gog then tap "Check for Updates"
-2. 
+1. In the WGHA - tap the gog then tap "Check for Updates"
+2. The app will update with the latest list of words
